@@ -114,6 +114,24 @@ const JobDetail = () => {
     } else {
       // Move to next stage
       const nextStage = stageOrder[currentIndex + 1] as "cutting" | "stitching" | "finishing" | "quality_check" | "packing_dispatch";
+      const nextStageData = stages.find(s => s.stage === nextStage);
+      
+      if (!nextStageData) {
+        toast.error("Next stage not found");
+        return;
+      }
+
+      // Start next stage and update job
+      const { error: startError } = await supabase
+        .from("production_stages")
+        .update({ started_at: new Date().toISOString() })
+        .eq("id", nextStageData.id);
+
+      if (startError) {
+        toast.error("Error starting next stage");
+        return;
+      }
+
       const { error: jobError } = await supabase
         .from("job_cards")
         .update({ current_stage: nextStage })
