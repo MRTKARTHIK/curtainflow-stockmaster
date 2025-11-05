@@ -73,11 +73,37 @@ const JobDetail = () => {
   };
 
   const handleAdvanceStage = async () => {
-    const currentStageData = stages.find(s => s.stage === job.current_stage);
-    
-    if (!currentStageData) {
-      toast.error("Current stage not found");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Not authenticated");
       return;
+    }
+
+    let currentStageData = stages.find(s => s.stage === job.current_stage);
+    
+    // If current stage doesn't exist in DB, create it first
+    if (!currentStageData) {
+      const stageOrder = ["cutting", "stitching", "finishing", "quality_check", "packing_dispatch"];
+      const currentIndex = stageOrder.indexOf(job.current_stage);
+      
+      const { data: newStage, error: createError } = await supabase
+        .from("production_stages")
+        .insert({
+          job_card_id: id,
+          stage: job.current_stage,
+          stage_number: currentIndex + 1,
+          responsible_user: user.id,
+          started_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (createError || !newStage) {
+        toast.error("Error creating stage");
+        return;
+      }
+      
+      currentStageData = newStage;
     }
 
     // Complete current stage
@@ -114,22 +140,39 @@ const JobDetail = () => {
     } else {
       // Move to next stage
       const nextStage = stageOrder[currentIndex + 1] as "cutting" | "stitching" | "finishing" | "quality_check" | "packing_dispatch";
-      const nextStageData = stages.find(s => s.stage === nextStage);
+      let nextStageData = stages.find(s => s.stage === nextStage);
       
+      // If next stage doesn't exist, create it
       if (!nextStageData) {
-        toast.error("Next stage not found");
-        return;
-      }
+        const { data: newNextStage, error: createNextError } = await supabase
+          .from("production_stages")
+          .insert({
+            job_card_id: id,
+            stage: nextStage,
+            stage_number: currentIndex + 2,
+            responsible_user: user.id,
+            started_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
 
-      // Start next stage and update job
-      const { error: startError } = await supabase
-        .from("production_stages")
-        .update({ started_at: new Date().toISOString() })
-        .eq("id", nextStageData.id);
+        if (createNextError || !newNextStage) {
+          toast.error("Error creating next stage");
+          return;
+        }
+        
+        nextStageData = newNextStage;
+      } else {
+        // Start existing next stage
+        const { error: startError } = await supabase
+          .from("production_stages")
+          .update({ started_at: new Date().toISOString() })
+          .eq("id", nextStageData.id);
 
-      if (startError) {
-        toast.error("Error starting next stage");
-        return;
+        if (startError) {
+          toast.error("Error starting next stage");
+          return;
+        }
       }
 
       const { error: jobError } = await supabase
