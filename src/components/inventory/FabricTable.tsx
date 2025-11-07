@@ -8,7 +8,20 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDownToLine, ArrowUpFromLine, AlertTriangle } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, AlertTriangle, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface FabricTableProps {
   fabrics: any[];
@@ -17,7 +30,24 @@ interface FabricTableProps {
   onRefresh: () => void;
 }
 
-export const FabricTable = ({ fabrics, loading, onIssueReturn }: FabricTableProps) => {
+export const FabricTable = ({ fabrics, loading, onIssueReturn, onRefresh }: FabricTableProps) => {
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from("fabrics")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Error deleting fabric");
+    } else {
+      toast.success("Fabric deleted successfully");
+      onRefresh();
+    }
+    setDeleteId(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -70,29 +100,56 @@ export const FabricTable = ({ fabrics, loading, onIssueReturn }: FabricTableProp
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onIssueReturn(fabric, "issue")}
-                  >
-                    <ArrowDownToLine className="h-4 w-4 mr-1" />
-                    Issue
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onIssueReturn(fabric, "return")}
-                  >
-                    <ArrowUpFromLine className="h-4 w-4 mr-1" />
-                    Return
-                  </Button>
+                <TableCell className="text-right">
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onIssueReturn(fabric, "issue")}
+                    >
+                      <ArrowDownToLine className="h-4 w-4 mr-1" />
+                      Issue
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onIssueReturn(fabric, "return")}
+                    >
+                      <ArrowUpFromLine className="h-4 w-4 mr-1" />
+                      Return
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteId(fabric.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Fabric</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this fabric? This will also delete all related stock movements and batches. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && handleDelete(deleteId)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

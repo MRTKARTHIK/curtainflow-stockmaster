@@ -8,8 +8,21 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface JobCardTableProps {
   jobs: any[];
@@ -25,8 +38,24 @@ const stageLabels: Record<string, string> = {
   packing_dispatch: "Packing/Dispatch",
 };
 
-export const JobCardTable = ({ jobs, loading }: JobCardTableProps) => {
+export const JobCardTable = ({ jobs, loading, onRefresh }: JobCardTableProps) => {
   const navigate = useNavigate();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from("job_cards")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Error deleting job card");
+    } else {
+      toast.success("Job card deleted successfully");
+      onRefresh();
+    }
+    setDeleteId(null);
+  };
 
   if (loading) {
     return (
@@ -77,19 +106,46 @@ export const JobCardTable = ({ jobs, loading }: JobCardTableProps) => {
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/jobs/${job.id}`)}
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  View
-                </Button>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/jobs/${job.id}`)}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteId(job.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Job Card</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this job card? This will also delete all production stages and fabric requirements. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && handleDelete(deleteId)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

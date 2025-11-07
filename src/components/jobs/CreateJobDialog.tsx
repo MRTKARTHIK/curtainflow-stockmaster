@@ -54,29 +54,16 @@ export const CreateJobDialog = ({ open, onOpenChange, onSuccess }: CreateJobDial
 
       if (jobError) throw jobError;
 
-      // Create all 5 production stages
-      const stages: Array<{
-        stage: "cutting" | "stitching" | "finishing" | "quality_check" | "packing_dispatch";
-        stage_number: number;
-      }> = [
-        { stage: "cutting", stage_number: 1 },
-        { stage: "stitching", stage_number: 2 },
-        { stage: "finishing", stage_number: 3 },
-        { stage: "quality_check", stage_number: 4 },
-        { stage: "packing_dispatch", stage_number: 5 },
-      ];
-
+      // Create only the first production stage (cutting)
       const { error: stageError } = await supabase
         .from("production_stages")
-        .insert(
-          stages.map((s) => ({
-            job_card_id: job.id,
-            stage: s.stage,
-            stage_number: s.stage_number,
-            responsible_user: user.id,
-            started_at: s.stage_number === 1 ? new Date().toISOString() : null,
-          }))
-        );
+        .insert({
+          job_card_id: job.id,
+          stage: "cutting",
+          stage_number: 1,
+          responsible_user: user.id,
+          started_at: new Date().toISOString(),
+        });
 
       if (stageError) throw stageError;
 
