@@ -8,6 +8,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -22,6 +34,22 @@ const stageLabels: Record<string, string> = {
 export const ProductionReport = () => {
   const [stages, setStages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from("production_stages")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error("Error deleting production stage");
+    } else {
+      toast.success("Production stage deleted successfully");
+      loadStages();
+    }
+    setDeleteId(null);
+  };
 
   useEffect(() => {
     loadStages();
@@ -71,6 +99,7 @@ export const ProductionReport = () => {
             <TableHead>Responsible User</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Notes</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -98,10 +127,38 @@ export const ProductionReport = () => {
                 </Badge>
               </TableCell>
               <TableCell>{stage.notes || "-"}</TableCell>
+              <TableCell className="text-right">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteId(stage.id)}
+                  disabled={!stage.completed_at}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Production Stage</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this production stage log? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteId && handleDelete(deleteId)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
